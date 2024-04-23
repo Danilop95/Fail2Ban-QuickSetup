@@ -31,10 +31,12 @@ determine_os() {
         INSTALL_CMD="apt-get install -y"
         UPDATE_CMD="apt-get update"
         REMOVE_CMD="apt-get remove --purge -y"
+        SERVICE_CMD="systemctl"
     elif [ -f /etc/redhat-release ]; then
         INSTALL_CMD="yum install -y"
         UPDATE_CMD="yum update"
         REMOVE_CMD="yum remove -y"
+        SERVICE_CMD="systemctl"
     else
         echo -e "\e[31mUnsupported distribution!\e[0m"
         exit 1
@@ -44,14 +46,31 @@ determine_os() {
 # Install Fail2Ban
 install_fail2ban() {
     echo -e "\e[34mInstalling Fail2Ban...\e[0m"
+    # Update package lists
+    echo "Updating package lists..."
     $UPDATE_CMD
+    if [ $? -ne 0 ]; then
+        echo -e "\e[31mFailed to update package lists. Please check your package manager settings.\e[0m"
+        log "Failed to update package lists."
+        return 1
+    fi
+    
+    # Check if Fail2Ban is already installed
+    if command -v fail2ban-server &>/dev/null; then
+        echo -e "\e[33mFail2Ban is already installed.\e[0m"
+        return 0
+    fi
+
+    # Proceed with installation
+    echo "Proceeding with Fail2Ban installation..."
     $INSTALL_CMD fail2ban
     if [ $? -eq 0 ]; then
-        echo -e "\e[32mFail2Ban has been installed.\e[0m"
+        echo -e "\e[32mFail2Ban has been installed successfully.\e[0m"
         log "Fail2Ban installed successfully."
     else
-        echo -e "\e[31mFailed to install Fail2Ban.\e[0m"
+        echo -e "\e[31mFailed to install Fail2Ban. Please check your network connection and repository configuration.\e[0m"
         log "Failed to install Fail2Ban."
+        return 1
     fi
 }
 
@@ -103,6 +122,7 @@ uninstall_fail2ban() {
     log "Fail2Ban completely uninstalled."
 }
 
+
 # Configure Fail2Ban
 configure_fail2ban() {
     echo -e "\e[34mConfiguring Fail2Ban...\e[0m"
@@ -111,12 +131,60 @@ configure_fail2ban() {
     log "Fail2Ban configuration opened for editing."
 }
 
+# Start Fail2Ban service
+start_fail2ban() {
+    echo -e "\e[34mStarting Fail2Ban service...\e[0m"
+    # Attempt to start the service
+    $SERVICE_CMD start fail2ban
+    if [ $? -eq 0 ]; then
+        echo -e "\e[32mFail2Ban service has been started successfully.\e[0m"
+        log "Fail2Ban service started successfully."
+        
+        # Optionally, check and display the status of Fail2Ban to confirm
+        echo "Verifying Fail2Ban service status..."
+        $SERVICE_CMD status fail2ban | grep "Active"
+        if grep -q "running" <<< $($SERVICE_CMD status fail2ban); then
+            echo -e "\e[32mConfirmation: Fail2Ban service is active and running.\e[0m"
+        else
+            echo -e "\e[31mWarning: Fail2Ban service is not running. Please check the logs.\e[0m"
+        fi
+    else
+        echo -e "\e[31mFailed to start Fail2Ban service. Please check the system logs for more information.\e[0m"
+        log "Failed to start Fail2Ban service."
+    fi
+}
+
+# Stop Fail2Ban service
+stop_fail2ban() {
+    echo -e "\e[34mStopping Fail2Ban service...\e[0m"
+    $SERVICE_CMD stop fail2ban
+    log "Fail2Ban service stopped."
+}
+
 # Check the status of Fail2Ban
 check_status() {
     echo -e "\e[34mChecking the status of Fail2Ban...\e[0m"
-    systemctl status fail2ban | grep Active
+    # Execute the command to check the service status
+    status_output=$($SERVICE_CMD status fail2ban)
+    
+    # Log the check
     log "Checked Fail2Ban status."
+
+    # Display the output to the user
+    echo "$status_output"
+
+    # Check if the service is active and running
+    if echo "$status_output" | grep -q "active (running)"; then
+        echo -e "\e[32mFail2Ban service is active and running.\e[0m"
+    elif echo "$status_output" | grep -q "inactive (dead)"; then
+        echo -e "\e[33mFail2Ban service is inactive.\e[0m"
+    elif echo "$status_output" | grep -q "failed"; then
+        echo -e "\e[31mFail2Ban service has failed. Please check the logs for more details.\e[0m"
+    else
+        echo -e "\e[33mFail2Ban service status is uncertain. Please investigate further.\e[0m"
+    fi
 }
+
 
 # Display menu for user interaction
 show_menu() {
@@ -126,19 +194,23 @@ show_menu() {
     echo "1. Install Fail2Ban"
     echo "2. Uninstall Fail2Ban"
     echo "3. Configure Fail2Ban"
-    echo "4. Check Fail2Ban Status"
-    echo "5. Exit"
+    echo "4. Start Fail2Ban Service"
+    echo "5. Stop Fail2Ban Service"
+    echo "6. Check Fail2Ban Status"
+    echo "7. Exit"
     echo ""
-    echo -n "Enter your choice [1-5]: "
+    echo -n "Enter your choice [1-7]: "
     read choice
     echo ""
     case $choice in
         1) install_fail2ban ;;
         2) uninstall_fail2ban ;;
         3) configure_fail2ban ;;
-        4) check_status ;;
-        5) exit 0 ;;
-        *) echo -e "\e[31mInvalid option, please choose between 1-5.\e[0m"
+        4) start_fail2ban ;;
+        5) stop_fail2ban ;;
+        6) check_status ;;
+        7) exit 0 ;;
+        *) echo -e "\e[31mInvalid option, please choose between 1-7.\e[0m"
            pause
     esac
 }
