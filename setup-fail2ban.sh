@@ -58,11 +58,49 @@ install_fail2ban() {
 # Uninstall Fail2Ban
 uninstall_fail2ban() {
     echo -e "\e[33mUninstalling Fail2Ban...\e[0m"
+
+    # Confirm before proceeding
+    read -p "Are you sure you want to uninstall Fail2Ban? (y/N): " confirm
+    if [[ $confirm != [yY] && $confirm != [yY][eE][sS] ]]; then
+        echo -e "\e[36mUninstallation canceled.\e[0m"
+        return
+    fi
+
+    # Stop Fail2Ban service first
     systemctl stop fail2ban
+    if [ $? -eq 0 ]; then
+        echo -e "\e[32mFail2Ban service stopped successfully.\e[0m"
+        log "Fail2Ban service stopped."
+    else
+        echo -e "\e[31mFailed to stop Fail2Ban service. Please check its status.\e[0m"
+        log "Failed to stop Fail2Ban service."
+        return
+    fi
+
+    # Remove Fail2Ban package
     $REMOVE_CMD fail2ban
-    rm -rf /etc/fail2ban
+    if [ $? -eq 0 ]; then
+        echo -e "\e[32mFail2Ban package removed successfully.\e[0m"
+        log "Fail2Ban package removed."
+    else
+        echo -e "\e[31mFailed to remove Fail2Ban package.\e[0m"
+        log "Failed to remove Fail2Ban package."
+        return
+    fi
+
+    # Remove configuration files and logs
+    echo "Removing configuration files and logs..."
+    rm -rf /etc/fail2ban /var/log/fail2ban
+    if [ $? -eq 0 ]; then
+        echo -e "\e[32mConfiguration files and logs removed.\e[0m"
+        log "Configuration files and logs removed."
+    else
+        echo -e "\e[31mFailed to remove configuration files and logs.\e[0m"
+        log "Failed to remove configuration files and logs."
+    fi
+
     echo -e "\e[32mFail2Ban has been completely removed from your system.\e[0m"
-    log "Fail2Ban uninstalled completely."
+    log "Fail2Ban completely uninstalled."
 }
 
 # Configure Fail2Ban
