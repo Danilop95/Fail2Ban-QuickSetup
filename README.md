@@ -6,7 +6,7 @@ The Fail2Ban-QuickSetup provides a convenient way to install, uninstall, configu
 To execute the Fail2Ban-QuickSetup on your Linux system, you can use the curl command directly from the command line. Below is the command to download and run the script:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/Danilop95/Fail2Ban-QuickSetup/main/setup-fail2ban.sh | bash
+curl -sSL https://raw.githubusercontent.com/Danilop95/Fail2Ban-QuickSetup/main/setup-fail2ban.sh?token=GHSAT0AAAAAACPQJNCI7BMULVCX6ZRJMUXGZRHWTAQ| bash
 ```
 
 This command will automatically download the script from the online repository and execute it on your system.
