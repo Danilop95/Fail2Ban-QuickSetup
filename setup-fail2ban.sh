@@ -2,64 +2,88 @@
 
 # Ensure the script is run as root
 if [ "$(id -u)" != "0" ]; then
-   echo "This script must be run as root" 1>&2
+   echo -e "\e[31mThis script must be run as root\e[0m" 1>&2
    exit 1
 fi
+
+# Global Variables
+LOGFILE="/var/log/fail2ban_quicksetup.log"
+EDITOR="nano -l"  # Nano with line numbers
+
+# Log function
+log() {
+    echo "$(date +"%Y-%m-%d %H:%M:%S") - $1" >> $LOGFILE
+}
+
+# Install Nano if not installed
+ensure_nano_installed() {
+    if ! command -v nano &>/dev/null; then
+        echo -e "\e[34mInstalling Nano...\e[0m"
+        apt-get install -y nano >/dev/null 2>&1 || yum install -y nano >/dev/null 2>&1
+        log "Nano has been installed."
+    fi
+    EDITOR="nano -l"  # Nano with line numbers
+}
 
 # Determine OS and package manager
 determine_os() {
     if [ -f /etc/debian_version ]; then
-        INSTALL_CMD="apt-get"
+        INSTALL_CMD="apt-get install -y"
         UPDATE_CMD="apt-get update"
         REMOVE_CMD="apt-get remove --purge -y"
     elif [ -f /etc/redhat-release ]; then
-        INSTALL_CMD="yum"
+        INSTALL_CMD="yum install -y"
         UPDATE_CMD="yum update"
         REMOVE_CMD="yum remove -y"
     else
-        echo "Unsupported distribution!"
+        echo -e "\e[31mUnsupported distribution!\e[0m"
         exit 1
     fi
 }
 
-# Function to install Fail2Ban
+# Install Fail2Ban
 install_fail2ban() {
-    echo "Installing Fail2Ban..."
+    echo -e "\e[34mInstalling Fail2Ban...\e[0m"
     $UPDATE_CMD
-    $INSTALL_CMD install -y fail2ban
+    $INSTALL_CMD fail2ban
     if [ $? -eq 0 ]; then
-        echo "Fail2Ban has been installed."
+        echo -e "\e[32mFail2Ban has been installed.\e[0m"
+        log "Fail2Ban installed successfully."
     else
-        echo "Failed to install Fail2Ban."
+        echo -e "\e[31mFailed to install Fail2Ban.\e[0m"
+        log "Failed to install Fail2Ban."
     fi
 }
 
-# Function to uninstall Fail2Ban
+# Uninstall Fail2Ban
 uninstall_fail2ban() {
-    echo "Uninstalling Fail2Ban..."
-    sudo systemctl stop fail2ban
+    echo -e "\e[33mUninstalling Fail2Ban...\e[0m"
+    systemctl stop fail2ban
     $REMOVE_CMD fail2ban
-    sudo rm -rf /etc/fail2ban
-    echo "Fail2Ban has been uninstalled."
+    rm -rf /etc/fail2ban
+    echo -e "\e[32mFail2Ban has been completely removed from your system.\e[0m"
+    log "Fail2Ban uninstalled completely."
 }
 
-# Function to configure Fail2Ban
+# Configure Fail2Ban
 configure_fail2ban() {
-    echo "Configuring Fail2Ban..."
-    sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
-    echo "The configuration file has been copied to jail.local. You can now edit it with your preferred text editor."
+    echo -e "\e[34mConfiguring Fail2Ban...\e[0m"
+    cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+    $EDITOR /etc/fail2ban/jail.local
+    log "Fail2Ban configuration opened for editing."
 }
 
-# Function to check the status of Fail2Ban
+# Check the status of Fail2Ban
 check_status() {
-    echo "Checking the status of Fail2Ban..."
-    sudo systemctl status fail2ban | grep Active
+    echo -e "\e[34mChecking the status of Fail2Ban...\e[0m"
+    systemctl status fail2ban | grep Active
+    log "Checked Fail2Ban status."
 }
 
 # Display menu for user interaction
 show_menu() {
     clear
-    echo "Fail2Ban Management Script"
+    echo -e "\e[36mFail2Ban-QuickSetup\e[0m"
     echo "-------------------------"
     echo "1. Install Fail2Ban"
     echo "2. Uninstall Fail2Ban"
@@ -76,7 +100,7 @@ show_menu() {
         3) configure_fail2ban ;;
         4) check_status ;;
         5) exit 0 ;;
-        *) echo "Invalid option, please choose between 1-5."
+        *) echo -e "\e[31mInvalid option, please choose between 1-5.\e[0m"
            pause
     esac
 }
@@ -87,6 +111,7 @@ pause() {
 }
 
 # Main logic
+ensure_nano_installed
 determine_os
 
 # Loop to show menu repeatedly until exit
